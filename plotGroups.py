@@ -32,8 +32,9 @@ def makeMatrixPlot(picturePathName, matrix, plotRange = (), fileName = '', \
 	
 	ax.set_xlim((plotRange[0]-0.5, plotRange[1]-0.5))
 	ax.set_ylim((plotRange[0]-0.5, plotRange[1]-0.5))
-	plt.xlabel('Ending Group')
-	plt.ylabel('Starting Group')
+	plt.xlabel('Starting Group')
+	plt.ylabel('Ending Group')
+	ax.invert_yaxis()
 
 	for axis in [ax.xaxis, ax.yaxis]:
 
@@ -52,31 +53,24 @@ def makeMatrixPlot(picturePathName, matrix, plotRange = (), fileName = '', \
 
 	fString = '{:.' + str(digits) + 'f}'
 
-	for z1 in range(plotRange[0], plotRange[1]):
+	for sG in range(plotRange[0], plotRange[1]):
 
-		for z2 in range(plotRange[0], plotRange[1]):
+		for eG in range(plotRange[0], plotRange[1]):
 
-			if z1 == z2 and not printDiagonal:
+			if sG == eG and not printDiagonal:
 
 				continue
 
-			if matrix[z1,z2] != 0:
+			if matrix[eG,sG] != 0:
 
-				if z1 != z2:
-
-					mText = plt.text(z2, z1, fString.format(matrix[z1,z2]), \
-									 horizontalalignment = 'center', verticalalignment = 'center')
-
-				else:
-
-					mText = plt.text(z2, z1, fString.format(matrix[z1,z2]), \
-									 horizontalalignment = 'center', verticalalignment = 'center')
+				mText = plt.text(sG, eG, fString.format(matrix[eG,sG]), \
+									 ha = 'center', va = 'center')
 
 				if colors != []:
 
-					mText.set_color(colors[z1%(len(colors))])
+					mText.set_color(colors[sG%(len(colors))])
 
-				if z1 == z2:
+				if sG == eG:
 
 					mText.set_color('red')
 

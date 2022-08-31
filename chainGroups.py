@@ -46,12 +46,12 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 	# The elements of jumpMatrix are the number of jumps from group A to group B.
 	# The elements of transMatrix are the probabilities of jumping from A to B.
 	# The elements of balMatrix are the flux from group A to group B.
-	# The elements of conMatrix combine the probability of jumps from A to B and B to A.
+	# The elements of netFluxMatrix combine the probability of jumps from A to B and B to A.
 	
 	topDict['jumpMatrix'] = {}
 	topDict['transMatrix'] = {}
 	topDict['balMatrix'] = {}
-	topDict['conMatrix'] = {}
+	topDict['netFluxMatrix'] = {}
 	topDict['netFlux'] = {}
 	
 	# The colors assigned to each group.
@@ -99,10 +99,10 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 	# The transition matrix is simply the jump matrix normalized
 	# by the size of each group to yield a transition probability
 	# from group to group. The balance matrix is the flux from group to
-	# group; the name comes from "detailed balance". Finally, the conMatrix
+	# group; the name comes from "detailed balance". Finally, the netFluxMatrix
 	# is the square root of the transition matrix times its transpose.
 
-	(jumpMatrix, transMatrix, balMatrix, conMatrix) \
+	(jumpMatrix, transMatrix, balMatrix, netFluxMatrix) \
 		= newMatrices(groupList, groupSizeList, groupMap, zoneList)
 
 	print('Found the matrices after ' + '{:.1f}'.format((tP.time()-start)/60) \
@@ -131,7 +131,7 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 	
 	eliminateSmallGroups(minGroupSize, groupList, groupHierarchy, \
 					  groupSizeList, groupMap, currentGroups, \
-					  jumpMatrix, transMatrix, balMatrix, conMatrix, \
+					  jumpMatrix, transMatrix, balMatrix, netFluxMatrix, \
 					  theLevel, zoneDict)
 	
 	# We are going to keep combining groups until the smallest diagonal
@@ -157,13 +157,6 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 			g1, g2 = getSimilarGroups(balMatrix, transMatrix, currentGroups, \
 									  probCutoff = probCutoff)
 
-		elif method == 'Con':
-
-			# Use the connectivity matrix for combining zones.
-
-			g1, g2 = getSimilarGroups(conMatrix, conMatrix, currentGroups, \
-									  probCutoff = probCutoff)
-
 		else:
 
 			# Use the transition probabilities.
@@ -175,7 +168,7 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 		
 		combineGroups(g1, g2, groupList, groupHierarchy, \
 					  groupSizeList, groupMap, currentGroups, \
-					  jumpMatrix, transMatrix, balMatrix, conMatrix)
+					  jumpMatrix, transMatrix, balMatrix, netFluxMatrix)
 
 		# Recalculate the minimum self-transition probability.
 
@@ -209,7 +202,7 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 
 			addGrouptoDict(topDict, zoneList, time, groupList, groupHierarchy, \
 						   groupSizeList, currentGroups, jumpMatrix, \
-							   transMatrix, balMatrix, conMatrix, \
+							   transMatrix, balMatrix, netFluxMatrix, \
 								   theLevel, colors)
 
 	print('Finished with ' + str(len(currentGroups)) + ' groups and minProb ' \
@@ -224,7 +217,7 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 
 def addGrouptoDict(topDict, zoneList, time, groupList, groupHierarchy, \
 				   groupSizeList, currentGroups, jumpMatrix, transMatrix, \
-					   balMatrix, conMatrix, levels, colors, reorder = False):
+					   balMatrix, netFluxMatrix, levels, colors, reorder = False):
 
 	# Find the number of active groups.
 
@@ -265,7 +258,7 @@ def addGrouptoDict(topDict, zoneList, time, groupList, groupHierarchy, \
 			newTransMatrix[i,j] = transMatrix[c,d]
 			newBalMatrix[i,j] = balMatrix[c,d]
 			newJumpMatrix[i,j] = jumpMatrix[c,d]
-			newConMatrix[i,j] = conMatrix[c,d]
+			newConMatrix[i,j] = netFluxMatrix[c,d]
 			
 	
 	netFlux = np.sum(newBalMatrix, axis = 0) - np.sum(newBalMatrix, axis = 1) 
@@ -275,7 +268,7 @@ def addGrouptoDict(topDict, zoneList, time, groupList, groupHierarchy, \
 	topDict['transMatrix'][numCurrent] = newTransMatrix
 	topDict['balMatrix'][numCurrent] = newBalMatrix
 	topDict['jumpMatrix'][numCurrent] = newJumpMatrix
-	topDict['conMatrix'][numCurrent] = newConMatrix
+	topDict['netFluxMatrix'][numCurrent] = newConMatrix
 	topDict['groupList'][numCurrent] = copy.deepcopy([ groupList[i] for i in currentGroups ])
 	topDict['groupHierarchy'][numCurrent] \
 		= copy.deepcopy([ groupHierarchy[i] for i in currentGroups ])
@@ -314,7 +307,9 @@ def newMatrices(groupList, groupSizeList, groupMap, zoneList):
 	# to the jump matrix. This means that the jump matrix combines the data from
 	# all the runs contained in zoneDict.
 
-	# Find the group of the first data point.
+	# Find the group of the first data point. sG is the starting group, eG is the ending
+	# group. The matrices are column stochastic, so jumpMatrix[eG, sG] is the number of
+	# jumps from starting group sG to ending group eG.
 
 	start = 0
 	sG = groupMap[zoneList[start]]
@@ -327,7 +322,7 @@ def newMatrices(groupList, groupSizeList, groupMap, zoneList):
 
 		eG = groupMap[zoneList[end]]
 
-		jumpMatrix[sG, eG] = jumpMatrix[sG, eG] + 1
+		jumpMatrix[eG, sG] = jumpMatrix[eG, sG] + 1
 
 		# Move on to the next point.
 
@@ -337,24 +332,27 @@ def newMatrices(groupList, groupSizeList, groupMap, zoneList):
 
 	transMatrix = np.zeros(jumpMatrix.shape)
 	balMatrix = np.zeros(jumpMatrix.shape)
-	conMatrix = np.zeros(jumpMatrix.shape)
+	netFluxMatrix = np.zeros(jumpMatrix.shape)
 
-	for i in range(numGroups):
+	# transMatrix[eG, sG] is the probability of jumping from starting group sG to ending
+	# group eG. To calculate this, we divide the elements of each column of jumpMatrix
+	# by the sum of that column.
+	
+	# balMatrix[eG, sG] is the flux from starting group sG to ending group eG. It is the
+	# transition rate from sG to eG times the probability of being in group sG.
+	
+	for sG in range(numGroups):
 
-		transMatrix[i,:] = jumpMatrix[i,:] / np.sum(jumpMatrix[i,:])
-		balMatrix[i,:] = transMatrix[i,:] * groupSizeList[i]/totalPoints
-		# conMatrix[:,i] = jumpMatrix[:,i] / np.sum(jumpMatrix[:,i])
+		transMatrix[:, sG] = jumpMatrix[:, sG] / np.sum(jumpMatrix[:, sG])
+		balMatrix[:, sG] = transMatrix[:, sG] * groupSizeList[sG]/totalPoints
+			
+	# netFluxMatrix[eG, sG] is the net flux from starting group sG to ending group eG.
+	# If it is postive, then points are moving from sG to eG. This matrix is always
+	# skew symmetric.
 		
-	# conMatrix = np.sqrt(transMatrix * np.transpose(transMatrix))
-	# conMatrix = np.minimum(transMatrix, np.transpose(transMatrix))
-	
-	denom = balMatrix.sum(axis=1, keepdims=True)
-	denom[np.where(denom == 0)] = 1
-	# conMatrix = balMatrix / denom
-	
-	conMatrix = -(balMatrix - np.transpose(balMatrix))
+	netFluxMatrix = balMatrix - np.transpose(balMatrix)
 
-	return jumpMatrix, transMatrix, balMatrix, conMatrix
+	return jumpMatrix, transMatrix, balMatrix, netFluxMatrix
 
 # Assign the zones to groups, one zone per group to start.
 
@@ -458,7 +456,7 @@ def getSimilarGroups(testMatrix, compMatrix, currentGroups, probCutoff = 0.98):
 
 	# Make sure we don't try to combine a group with itself
 
-	tM = copy.copy(compMatrix[minG,:])
+	tM = copy.copy(testMatrix[:, minG])
 	tM[minG] = 0
 
 	# Find the group that this group jumps to the most
@@ -471,7 +469,7 @@ def getSimilarGroups(testMatrix, compMatrix, currentGroups, probCutoff = 0.98):
 # and balance matrices will also all be updated.
 
 def combineGroups(g1, g2, groupList, groupHierarchy, groupSizeList, groupMap, \
-					currentGroups, jumpMatrix, transMatrix, balMatrix, conMatrix):
+					currentGroups, jumpMatrix, transMatrix, balMatrix, netFluxMatrix):
 
 	# np.set_printoptions(precision=0, suppress=True, linewidth=200)
 
@@ -487,7 +485,7 @@ def combineGroups(g1, g2, groupList, groupHierarchy, groupSizeList, groupMap, \
 		print('-----')
 		print(transMatrix)
 		print('-----')
-		print(conMatrix)
+		print(netFluxMatrix)
 		print('-----')
 	
 	mG1 = min(groupHierarchy[g1])
@@ -539,24 +537,24 @@ def combineGroups(g1, g2, groupList, groupHierarchy, groupSizeList, groupMap, \
 
 	# Add the jumps from the first group to the second group
 
-	jumpMatrix[g2,:] = jumpMatrix[g2,:] + jumpMatrix[g1,:]
-	jumpMatrix[:,g2] = jumpMatrix[:,g2] + jumpMatrix[:,g1]
+	jumpMatrix[:, g2] = jumpMatrix[:, g2] + jumpMatrix[:, g1]
+	jumpMatrix[g2, :] = jumpMatrix[g2, :] + jumpMatrix[g1, :]
 
 	# Set the removed row and column to zero.
 
-	jumpMatrix[g1,:] = 0
 	jumpMatrix[:,g1] = 0
+	jumpMatrix[g1,:] = 0
 
 	# Calculate the new rows and columns of the transition and balance matrices.
 
-	transMatrix[g2,:] = jumpMatrix[g2,:] / np.sum(jumpMatrix[g2,:])
-	balMatrix[g2,:] = transMatrix[g2,:] * groupSizeList[g2]/totalPoints
+	transMatrix[:, g2] = jumpMatrix[:, g2] / np.sum(jumpMatrix[:, g2])
+	balMatrix[:, g2] = transMatrix[:, g2] * groupSizeList[g2]/totalPoints
 
 	# print('Currently have ' + str(len(currentGroups)) + ' groups: ' + str(currentGroups))
 
-	for r in currentGroups:
-		transMatrix[r,g2] = jumpMatrix[r,g2] / np.sum(jumpMatrix[r,:])
-		balMatrix[r,g2] = transMatrix[r,g2] * groupSizeList[r] / totalPoints
+	for sG in currentGroups:
+		transMatrix[g2, sG] = jumpMatrix[g2, sG] / np.sum(jumpMatrix[:, sG])
+		balMatrix[g2, sG] = transMatrix[g2, sG] * groupSizeList[sG] / totalPoints
 		
 	# Set the probabilities for the removed groups to zero in all the probability matrices.
 
@@ -564,26 +562,19 @@ def combineGroups(g1, g2, groupList, groupHierarchy, groupSizeList, groupMap, \
 	transMatrix[:,g1] = 0
 	balMatrix[g1,:] = 0
 	balMatrix[:,g1] = 0
-	conMatrix[g1,:] = 0
-	conMatrix[:,g1] = 0
-
-	# conMatrix[g2,:] = np.minimum(transMatrix[g2,:], np.transpose(transMatrix[:,g2]))
-	# conMatrix[:,g2] = np.minimum(transMatrix[:,g2], np.transpose(transMatrix[g2,:]))
-
-	denom = balMatrix.sum(axis=1, keepdims=True)
-	denom[np.where(denom == 0)] = 1
-	# conMatrix[:,:] = balMatrix[:,:] / denom
+	netFluxMatrix[g1,:] = 0
+	netFluxMatrix[:,g1] = 0
 	
-	for r in currentGroups:
+	for sG in currentGroups:
 
-		conMatrix[r,:] = -(balMatrix[r,:] - balMatrix[:,r])
+		netFluxMatrix[:, sG] = balMatrix[:, sG] - balMatrix[sG, :]
 
 
 # 	print(currentGroups)
 # 	print('-----')
 # 	print(transMatrix)
 # 	print('-----')
-# 	print(conMatrix)
+# 	print(netFluxMatrix)
 # 	print('-----')
 	
 # Assign colors to the groups, starting with the largest radius in the polar plots
@@ -755,10 +746,10 @@ def printGroupStatistics(groupSizeList, currentGroups, transMatrix):
 	zeroDict = {}
 	outDict = {}
 
-	for i in currentGroups:
+	for sG in currentGroups:
 
-		n = groupSizeList[i]
-		r = transMatrix[i,:]
+		n = groupSizeList[sG]
+		r = transMatrix[:, sG]
 		rNZ = r > 0
 		o = sum(rNZ)
 
@@ -766,7 +757,7 @@ def printGroupStatistics(groupSizeList, currentGroups, transMatrix):
 
 			# This should never happen!
 			
-			print('Group ' + str(i) + ' has no data points!')
+			print('Group ' + str(sG) + ' has no data points!')
 
 		if n in zeroDict.keys():
 
@@ -808,7 +799,7 @@ def printGroupStatistics(groupSizeList, currentGroups, transMatrix):
 
 def eliminateSmallGroups(minGroupSize, groupList, groupHierarchy, \
 					  groupSizeList, groupMap, currentGroups, \
-					  jumpMatrix, transMatrix, balMatrix, conMatrix, \
+					  jumpMatrix, transMatrix, balMatrix, netFluxMatrix, \
 					  theLevel, zoneDict):
 	
 	# Go though the list of current groups and look for groups that are smaller
@@ -877,7 +868,7 @@ def eliminateSmallGroups(minGroupSize, groupList, groupHierarchy, \
 		
 			combineGroups(g, gg, groupList, groupHierarchy, \
 				groupSizeList, groupMap, currentGroups, \
-				jumpMatrix, transMatrix, balMatrix, conMatrix)
+				jumpMatrix, transMatrix, balMatrix, netFluxMatrix)
 				
 		smallGroups = [ g for g in currentGroups if groupSizeList[g] < minGroupSize ]
 		smallGroups = [ g for g in smallGroups if groupSizeList[g] > 0 ]
