@@ -1,4 +1,5 @@
 import numpy as np
+from math import floor
 
 # Some constants used when subdividing the zones. 
 # LR -> lower right
@@ -55,6 +56,8 @@ def makeZones(x, y, shape = 'Wedge', style = 'Classic', maxLevel = 7, minPoints 
 			zoneDict[0][0]['ymin'] = 0
 		elif style == 'noSector':
 			zoneDict[0][0]['ymin'] = 0.25
+		elif style == 'Dynamic':
+			zoneDict[0][0]['ymin'] = findMinima(y)
 		else:
 			zoneDict[0][0]['ymin'] = 0
 			
@@ -74,8 +77,9 @@ def makeZones(x, y, shape = 'Wedge', style = 'Classic', maxLevel = 7, minPoints 
 		
 	return zoneDict
 	
-def divideZones(x, y, level, zoneDict, shape = 'Wedge', style = 'Classics', maxLevel = 7, \
+def divideZones(x, y, level, zoneDict, shape = 'Wedge', style = 'Classic', maxLevel = 7, \
 				minPoints = 100):
+	# Note, typo found in the parameter default value for style (was "Classics" should be "Classic")
 				
 	newLevel = level + 1
 	
@@ -83,40 +87,123 @@ def divideZones(x, y, level, zoneDict, shape = 'Wedge', style = 'Classics', maxL
 		return
 		
 	# Make the dictionary for the zones at the new level.
+	if style == 'classic' or 'noSector':
 	
-	zoneDict[newLevel] = {}
-	for z in range(4**newLevel):
-		zoneDict[newLevel][z] = {}
-		
-	# Go through the existing zones, dividing each one up into four pieces.
-	
-	for z in range(4**level):
-	
-		if (style == 'Classic') and (zoneDict[level][z]['ymin'] == 0):
-		
-			divideSector(zoneDict[level][z], intToKey(z,level), newLevel, zoneDict)
-			
-		elif (style == 'Classic') and (zoneDict[level][z]['xmin'] == 0) \
-				and (zoneDict[level][z]['xmax'] == np.pi/3):
-			
-			divideAnnulus(zoneDict[level][z], intToKey(z,level), newLevel, zoneDict)
-			
-		else:
-		
-			if shape == 'Wedge':
-			
-				yMid = np.sqrt((zoneDict[level][z]['ymin']**2+zoneDict[level][z]['ymax']**2)/2)
-				
+		zoneDict[newLevel] = {}
+		for z in range(4**newLevel):
+			zoneDict[newLevel][z] = {}
+
+		# Go through the existing zones, dividing each one up into four pieces.
+
+		for z in range(4**level):
+
+			if (style == 'Classic') and (zoneDict[level][z]['ymin'] == 0):
+
+				divideSector(zoneDict[level][z], intToKey(z,level), newLevel, zoneDict)
+
+			elif (style == 'Classic') and (zoneDict[level][z]['xmin'] == 0) \
+					and (zoneDict[level][z]['xmax'] == np.pi/3):
+
+				divideAnnulus(zoneDict[level][z], intToKey(z,level), newLevel, zoneDict)
+
 			else:
-			
-				yMid = (zoneDict[level][z]['ymin']+zoneDict[level][z]['ymax']**2)/2
-				
-			divideZoneEqualArea(zoneDict[level][z], yMid, intToKey(z,level), newLevel, zoneDict)
-	
+
+				if shape == 'Wedge':
+
+					yMid = np.sqrt((zoneDict[level][z]['ymin']**2+zoneDict[level][z]['ymax']**2)/2)
+
+				else:
+
+					yMid = (zoneDict[level][z]['ymin']+zoneDict[level][z]['ymax']**2)/2
+
+				divideZoneEqualArea(zoneDict[level][z], yMid, intToKey(z,level), newLevel, zoneDict)
+	else:
+
+		zoneDict[newLevel] = {}
+		pastZones = {}
+
+		for z in pastZones.keys():
+			divideAnnulusDynamic(x, y, zoneDict[level][z], z, newLevel, zoneDict)
+
 	divideZones(x, y, newLevel, zoneDict, shape = shape, style = style, maxLevel = maxLevel, minPoints = minPoints)
 	
 # Divide a sector up into four pieces. This is only used if shape == 'Wedge' and
 # style == 'Classic'.
+
+
+def divideAnnulusDynamic(x, y, bounds, key, newLevel, zoneDict):
+	"""New partitioning method"""
+
+	# First step is to sort the passed data
+	x = np.sort(x)
+	y = np.sort(y)
+
+	# We then generate a "mask" for the data array so that we only work
+	# with data within the bounds of the current zone
+	yLess = y <= bounds['ymax']
+	yGreat = y >= bounds['ymin']
+	yMask = np.logical_and(yLess, yGreat)
+	y = y[yMask]
+
+	xLess = x <= bounds['xmax']
+	xGreat = x >= bounds['xmin']
+	xMask = np.logical_and(xLess, xGreat)
+	x = x[xMask]
+
+	# If the current zone only contains 2 or fewer points we won't subdivide it
+	# any further, there is no point in doing so
+	if (x.shape[0] <= 2) or (y.shape[0] <= 2):
+		zoneDict[newLevel][key] = bounds
+
+	else:
+
+		# If the amount of data in the zone boundaries is uneven then
+		# a 50/50 partition is not possible, there will be one point left.
+		#
+		# To get around this we award an extra index to the side of the data
+		# that is more "sparse" (has a higher range in the given dimension)
+		if x.shape[0] % 2 != 0:
+			desc = compareRanges(x)
+			if desc == 0:
+				xidx = x.shape[0] // 2 + 1
+			else:
+				xidx = x.shape[0] // 2 - 1
+
+		if y.shape[0] % 2 != 0:
+			desc = compareRanges(y)
+			if desc == 0:
+				yidx = y.shape[0] // 2 + 1
+			else:
+				yidx = y.shape[0] // 2 - 1
+
+		zNumber = keyToInt(key + LL)
+
+		zoneDict[newLevel][zNumber]['ymin'] = bounds['ymin']
+		zoneDict[newLevel][zNumber]['ymax'] = y[yidx]
+		zoneDict[newLevel][zNumber]['xmin'] = x[xidx]
+		zoneDict[newLevel][zNumber]['xmax'] = bounds['xmax']
+
+		zNumber = keyToInt(key + LR)
+
+		zoneDict[newLevel][zNumber]['ymin'] = bounds['ymin']
+		zoneDict[newLevel][zNumber]['ymax'] = y[yidx]
+		zoneDict[newLevel][zNumber]['xmin'] = bounds['xmin']
+		zoneDict[newLevel][zNumber]['xmax'] = x[xidx]
+
+		zNumber = keyToInt(key + UL)
+
+		zoneDict[newLevel][zNumber]['ymin'] = y[yidx]
+		zoneDict[newLevel][zNumber]['ymax'] = bounds['ymax']
+		zoneDict[newLevel][zNumber]['xmin'] = x[xidx]
+		zoneDict[newLevel][zNumber]['xmax'] = bounds['xmax']
+
+		zNumber = keyToInt(key + UR)
+
+		zoneDict[newLevel][zNumber]['ymin'] = y[yidx]
+		zoneDict[newLevel][zNumber]['ymax'] = bounds['ymax']
+		zoneDict[newLevel][zNumber]['xmin'] = bounds['xmin']
+		zoneDict[newLevel][zNumber]['xmax'] = x[xidx]
+
 
 def divideSector(bounds, key, newLevel, zoneDict):
 
@@ -341,6 +428,32 @@ def findZone(x, y, maxLevel, zoneDict):
 		currentKey = currentKey + k
 			
 	return zone
+
+
+def compareRanges(xy):
+	"""New Function for settling unequal partitions"""
+
+	# What is the current splitting index?
+	splitIdx = xy.shape[0]
+
+	# Create left and right partitions of a given data stream
+	left = xy[0:splitIdx]
+	right = xy[splitIdx:splitIdx * 2]
+
+	# If the left side is more "sparse" (larger range), return 0.
+	# Return 1 if the opposite case is true.
+	if (left[-1] - left[0]) > (right[-1] - right[0]):
+		return 0
+	else:
+		return 1
+
+
+def findMinima(xy):
+	"""New function for finding the minimum point value in a datastream"""
+
+	# I floor it for simplicity
+	minima = floor(np.min(xy))
+	return minima
 
 # Convert a zone key (a string consisting of characters '0', '1', '2', and '3') to an
 # integer by interpreting the key as a number in base 4.

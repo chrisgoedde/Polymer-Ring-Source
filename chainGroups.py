@@ -139,7 +139,8 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 
 	diagProb = np.diagonal(transMatrix)[currentGroups]
 	minSelfProb = np.min(diagProb)
-	
+
+	considered = copy.copy(currentGroups)
 	# We'll stop combining groups when the smallest self-transition probability
 	# is below the cutoff.
 
@@ -164,18 +165,21 @@ def groupZones(zoneList, zoneDict, time, theLevel, method = 'Trans', \
 			g1, g2 = getSimilarGroups(transMatrix, transMatrix, currentGroups, \
 									  probCutoff = probCutoff)
 
-		# Combine groups g1 and g2.
-		
-		combineGroups(g1, g2, groupList, groupHierarchy, \
-					  groupSizeList, groupMap, currentGroups, \
-					  jumpMatrix, transMatrix, balMatrix, netFluxMatrix)
+		if g1 != g2:
 
-		# Recalculate the minimum self-transition probability.
+			combineGroups(g1, g2, groupList, groupHierarchy, groupSizeList, \
+						  groupMap, currentGroups, jumpMatrix, transMatrix, \
+						  balMatrix, netFluxMatrix)
+			diagProb = np.diagonal(transMatrix)
+			considered.pop(considered.index(g1))
+			minSelfProb = np.min(diagProb[considered])
 
-		diagProb = np.diagonal(transMatrix)
-		minSelfProb = np.min(diagProb[currentGroups])
+		else:
 
-		# Keep track of the time, and print an update if necessary.
+			considered.pop(considered.index(g1))
+			diagProb = np.diagonal(transMatrix)
+			minSelfProb = np.min(diagProb[considered])
+
 		
 		end = tP.time()
 		if (end-start) > 180:
@@ -462,8 +466,32 @@ def getSimilarGroups(testMatrix, compMatrix, currentGroups, probCutoff = 0.98):
 	# Find the group that this group jumps to the most
 
 	maxG = np.argmax(tM)
-	
-	return minG, maxG
+
+	if testMatrix[maxG, minG] == 0:
+		tM[maxG] = 0
+		maxG = findMaxG(testMatrix, minG, tM)
+
+		if not maxG:
+			return minG, minG
+		else:
+			return minG, maxG
+
+	else:
+		return minG, maxG
+
+
+def findMaxG(testMatrix, minG, minGCol):
+	"""Function used to find symmetric transition groups """
+
+	if np.sum(minGCol) == 0:
+		return False
+	else:
+		maxG = np.argmax(minGCol)
+		if testMatrix[minG, maxG] == 0:
+			minGCol[maxG] = 0
+			return findMaxG(testMatrix, minG, minGCol)
+		else:
+			return maxG
 
 # Combine two groups. Group g1 will be added to group g2. The jump, transition,
 # and balance matrices will also all be updated.
