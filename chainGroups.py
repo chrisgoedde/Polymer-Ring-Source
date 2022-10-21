@@ -146,7 +146,7 @@ def groupZones(zoneList, zoneDict, time, theLevel, method='Trans', \
     # We'll stop combining groups when the smallest self-transition probability
     # is below the cutoff.
 
-    while minSelfProb < probCutoff:
+    while minSelfProb < probCutoff and (len(considered) != 0):
 
         # We combine two groups based on the transition probabilities.
         # We will also modify the jump matrix to take our new combined
