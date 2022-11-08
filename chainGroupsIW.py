@@ -206,7 +206,7 @@ def newGroupList(zoneList):
     groupList = []
     groupSizeList = []
     groupMap = {}
-    groupSeries = zoneList
+    groupSeries = copy.deepcopy(zoneList)
     groupNum = 0
 
     # groupNum tracks the index of the list of groups.
