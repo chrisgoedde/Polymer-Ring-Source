@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="45430127-42ef-4dd8-ae9c-2f569d2900af" name="Changes" comment="Fixed stopping criterion on line 149 so that the while loop breaks if we've naturally run out of considered groups.">
+      <change afterPath="$PROJECT_DIR$/inchAlgorithm.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/spanningGroups.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/chainGroupsIW.py" beforeDir="false" afterPath="$PROJECT_DIR$/chainGroupsIW.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -58,7 +59,8 @@
       <workItem from="1666281579118" duration="750000" />
       <workItem from="1667110229578" duration="8971000" />
       <workItem from="1667460450112" duration="1380000" />
-      <workItem from="1667789543268" duration="812000" />
+      <workItem from="1667789543268" duration="2001000" />
+      <workItem from="1672969251114" duration="190000" />
     </task>
     <servers />
   </component>
