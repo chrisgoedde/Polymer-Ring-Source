@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="45430127-42ef-4dd8-ae9c-2f569d2900af" name="Changes" comment="Fixed stopping criterion on line 149 so that the while loop breaks if we've naturally run out of considered groups.">
+      <change afterPath="$PROJECT_DIR$/spanPy.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/plotZones.py" beforeDir="false" afterPath="$PROJECT_DIR$/plotZones.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProjectId" id="2ENFmyLcp2EyNxy2xSpuQz6lbCX" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "settings.editor.selected.configurable": "reference.settingsdialog.IDE.editor.colors"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="45430127-42ef-4dd8-ae9c-2f569d2900af" name="Changes" comment="" />
+      <created>1662428298266</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1662428298266</updated>
+      <workItem from="1662428299938" duration="8883000" />
+      <workItem from="1662506070740" duration="5501000" />
+      <workItem from="1662579420615" duration="3182000" />
+      <workItem from="1662582754745" duration="129000" />
+      <workItem from="1662659261477" duration="6754000" />
+      <workItem from="1664510479413" duration="909000" />
+      <workItem from="1664857072113" duration="1340000" />
+      <workItem from="1665080435467" duration="2253000" />
+      <workItem from="1665636623665" duration="4475000" />
+      <workItem from="1665876512178" duration="600000" />
+      <workItem from="1666281579118" duration="750000" />
+      <workItem from="1667110229578" duration="8971000" />
+      <workItem from="1667460450112" duration="1380000" />
+      <workItem from="1667789543268" duration="2001000" />
+      <workItem from="1672969251114" duration="786000" />
+      <workItem from="1681010316656" duration="6552000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
